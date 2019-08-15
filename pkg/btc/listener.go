@@ -70,6 +70,8 @@ func (l *Listener) Start(quit chan struct{}) {
 // peers have exchanged their version.
 // https://en.bitcoin.it/wiki/Protocol_documentation
 func (l *Listener) Handshake() error {
+	fmt.Println("initiate handshake...")
+
 	msgver := MsgVersion{
 		Version:   Version,
 		Services:  1,
@@ -119,6 +121,26 @@ func (l *Listener) readVerAck() error {
 	}
 
 	fmt.Println(headerBytes)
+
+	header := bytes.NewReader(headerBytes[:])
+
+	verAck := &MsgEnvelope{}
+
+	// read Magic
+	buf := make([]byte, 4)
+	if _, err := io.ReadFull(header, buf); err != nil {
+		buf = nil
+		return err
+	}
+	verAck.Magic = binary.LittleEndian.Uint32(buf)
+
+	buf = make([]byte, 12)
+	if _, err := io.ReadFull(header, buf); err != nil {
+		buf = nil
+		return err
+	}
+
+	copy(verAck.Command[:], buf[:])
 
 	return nil
 }
