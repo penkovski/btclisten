@@ -33,12 +33,12 @@ func main() {
 
 	fmt.Printf("connected to %s\n", seedNodeIP)
 
-	quit := make(chan bool)
-	listener, err := btc.NewListener(conn, quit)
+	quit := make(chan struct{})
+	listener, err := btc.NewListener(conn)
 	if err != nil {
 		log.Fatal(err)
 	}
-	listener.Start()
+	go listener.Start(quit)
 
 	<-quit
 	fmt.Println("disconnected")

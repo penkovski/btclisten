@@ -39,12 +39,12 @@ type MsgVersion struct {
 	Relay       bool
 }
 
-// serialize the network address before sending over the network.
+// Serialize the network address before sending over the network.
 //
-// Almost all integers are encoded in little endian.
+// Most integers are encoded in little endian.
 // Only IP or port number are encoded big endian.
 // https://en.bitcoin.it/wiki/Protocol_documentation#Common_structures
-func (addr NetAddr) serialize() []byte {
+func (addr NetAddr) Serialize() []byte {
 	var buf bytes.Buffer
 
 	b := make([]byte, 8)
@@ -60,8 +60,9 @@ func (addr NetAddr) serialize() []byte {
 	return buf.Bytes()
 }
 
-// serialize the protocol message envelope, including the payload
-func (m MsgEnvelope) serialize() []byte {
+// Serialize the protocol message envelope and add the payload
+// to the serialized bytes slice.
+func (m MsgEnvelope) Serialize() []byte {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
@@ -80,9 +81,9 @@ func (m MsgEnvelope) serialize() []byte {
 	return buf.Bytes()
 }
 
-// serialize version protocol message. This is the
+// Serialize version protocol message. This is the
 // payload of the MsgEnvelope.
-func (mv MsgVersion) serialize() (data []byte) {
+func (mv MsgVersion) Serialize() (data []byte) {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
@@ -97,8 +98,8 @@ func (mv MsgVersion) serialize() (data []byte) {
 	binary.LittleEndian.PutUint64(b, mv.Timestamp)
 	buf.Write(b)
 
-	buf.Write(mv.AddrRecv.serialize())
-	buf.Write(mv.AddrFrom.serialize())
+	buf.Write(mv.AddrRecv.Serialize())
+	buf.Write(mv.AddrFrom.Serialize())
 
 	b = make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, mv.Nonce)

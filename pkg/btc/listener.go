@@ -2,6 +2,7 @@ package btc
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
@@ -26,10 +27,9 @@ type Listener struct {
 	peerPort uint16
 
 	conn net.Conn
-	quit chan bool
 }
 
-func NewListener(conn net.Conn, done chan bool) (*Listener, error) {
+func NewListener(conn net.Conn) (*Listener, error) {
 	// extract host and port
 	ip, port, err := addrIpPort(conn.RemoteAddr())
 	if err != nil {
@@ -41,7 +41,6 @@ func NewListener(conn net.Conn, done chan bool) (*Listener, error) {
 
 	l := &Listener{
 		conn:     conn,
-		quit:     done,
 		peerIP:   peerIP,
 		peerPort: port,
 	}
@@ -49,17 +48,17 @@ func NewListener(conn net.Conn, done chan bool) (*Listener, error) {
 	return l, nil
 }
 
-func (l *Listener) Start() {
-	defer func() { l.quit <- true }()
+// Start should be executed in its own go routine
+// if you don't want to block when calling it.
+func (l *Listener) Start(quit chan struct{}) {
+	defer func() { quit <- struct{}{} }()
 
 	err := l.Handshake()
 	if err != nil {
 		return
 	}
 
-	l.readVerAck()
-
-	go l.Listen(l.conn)
+	l.Listen(l.conn)
 }
 
 // Handshake initiates the exchange of version messages between
@@ -89,7 +88,7 @@ func (l *Listener) Handshake() error {
 		Relay:       false,
 	}
 
-	payload := msgver.serialize()
+	payload := msgver.Serialize()
 
 	var cmd [12]byte
 	copy(cmd[:], "version")
@@ -105,8 +104,11 @@ func (l *Listener) Handshake() error {
 	copy(msg.Checksum[:], second[0:4])
 	msg.Payload = payload
 
-	_, err := l.conn.Write(msg.serialize())
-	return err
+	if _, err := l.conn.Write(msg.Serialize()); err != nil {
+		return err
+	}
+
+	return l.readVerAck()
 }
 
 func (l *Listener) readVerAck() error {
