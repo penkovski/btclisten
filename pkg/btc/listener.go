@@ -7,10 +7,8 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
-	"time"
 )
 
 const (
@@ -72,77 +70,49 @@ func (l *Listener) Start(quit chan struct{}) {
 func (l *Listener) Handshake() error {
 	fmt.Println("initiate handshake...")
 
-	msgver := MsgVersion{
-		Version:   Version,
-		Services:  1,
-		Timestamp: uint64(time.Now().Unix()),
-		AddrRecv: NetAddr{
-			IP:   l.peerIP,
-			Port: l.peerPort,
-		},
-		AddrFrom: NetAddr{
-			IP:   [16]byte{},
-			Port: 0,
-		},
-		Nonce:       randomNonce(),
-		UserAgent:   "github.com/penkovski/btclisten",
-		StartHeight: -1,
-		Relay:       false,
-	}
-
+	// send version message
+	msgver := NewMsgVersion(l.peerIP, l.peerPort)
 	payload := msgver.Serialize()
-
-	var cmd [12]byte
-	copy(cmd[:], "version")
-
-	msg := MsgEnvelope{
-		Magic:   MagicMainNet,
-		Command: cmd,
-		Length:  uint32(len(payload)),
-	}
-
-	first := sha256.Sum256(payload)
-	second := sha256.Sum256(first[:])
-	copy(msg.Checksum[:], second[0:4])
-	msg.Payload = payload
-
+	msg := NewMsg(MagicMainNet, "version", payload)
 	if _, err := l.conn.Write(msg.Serialize()); err != nil {
 		return err
 	}
 
-	return l.readVerAck()
-}
-
-func (l *Listener) readVerAck() error {
-	var headerBytes [24]byte
-	_, err := io.ReadFull(l.conn, headerBytes[:])
+	// read peer version response
+	verack, err := l.readVerAck()
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(headerBytes)
-
-	header := bytes.NewReader(headerBytes[:])
-
-	verAck := &MsgEnvelope{}
-
-	// read Magic
-	buf := make([]byte, 4)
-	if _, err := io.ReadFull(header, buf); err != nil {
-		buf = nil
-		return err
-	}
-	verAck.Magic = binary.LittleEndian.Uint32(buf)
-
-	buf = make([]byte, 12)
-	if _, err := io.ReadFull(header, buf); err != nil {
-		buf = nil
-		return err
+	if !bytes.EqualFold(verack.Command[:], []byte("version")) {
+		return fmt.Errorf("expected version command, but received: %v", verack.Command)
 	}
 
-	copy(verAck.Command[:], buf[:])
+	// validate Checksum
+	first := sha256.Sum256(payload)
+	second := sha256.Sum256(first[:])
+	if !bytes.Equal(verack.Checksum[0:4], second[0:4]) {
+		return fmt.Errorf("invalid checksum: %v, expected = %v", verack.Checksum, second[0:4])
+	}
 
-	return nil
+	peerMsgVersion := &MsgVersion{}
+	buf := bytes.NewBuffer(payload)
+	err = peerMsgVersion.Deserialize(buf)
+	if err != nil {
+		return fmt.Errorf("error deserializing version message payload: %v", err)
+	}
+
+	fmt.Println("peer version =", peerMsgVersion)
+
+	return err
+}
+
+func (l *Listener) readVerAck() (Msg, error) {
+	msg := Msg{}
+	err := msg.Deserialize(l.conn)
+	if err != nil {
+		return Msg{}, err
+	}
+	return msg, err
 }
 
 func (l *Listener) ping() {
