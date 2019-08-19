@@ -53,6 +53,7 @@ func (l *Listener) Start(quit chan struct{}) {
 
 	err := l.Handshake()
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 

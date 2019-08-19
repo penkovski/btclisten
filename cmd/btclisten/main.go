@@ -40,6 +40,8 @@ func main() {
 	}
 	go listener.Start(quit)
 
+	// TODO(penkovski): CTRL-C handler
+
 	<-quit
 	fmt.Println("disconnected")
 }

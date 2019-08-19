@@ -87,22 +87,53 @@ func (mv MsgVersion) Deserialize(r io.Reader) error {
 	}
 
 	// protocol version
+	b := make([]byte, 4)
+	if _, err := io.ReadFull(buf, b); err != nil {
+		return err
+	}
+	mv.Version = binary.LittleEndian.Uint32(b)
 
 	// services
+	b = make([]byte, 8)
+	if _, err := io.ReadFull(buf, b); err != nil {
+		return err
+	}
+	mv.Services = binary.LittleEndian.Uint64(b)
 
 	// timestamp
+	b = make([]byte, 8)
+	if _, err := io.ReadFull(buf, b); err != nil {
+		return err
+	}
+	mv.Timestamp = binary.LittleEndian.Uint64(b)
 
 	// addr peer
+	mv.AddrRecv.Deserialize(buf)
 
-	// addr local
+	// Protocol versions >= 106 added a from address, nonce, and user agent
+	// field and they are only considered present if there are bytes
+	// remaining in the message.
+	if buf.Len() > 0 {
+		mv.AddrFrom.Deserialize(buf)
+	}
 
 	// nonce
+	if buf.Len() > 0 {
+		b = make([]byte, 8)
+		if _, err := io.ReadFull(buf, b); err != nil {
+			return err
+		}
+		mv.Nonce = binary.LittleEndian.Uint64(b)
+	}
 
 	// user agent
+	// TODO(penkovski): read user agent
 
 	// last block height
+	// TODO(penkovski): read last block height
 
 	// relay
+	// TODO(penkovski): read relay flag
 
 	return nil
 }
