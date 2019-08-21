@@ -31,7 +31,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	fmt.Printf("connected to %s\n", seedNodeIP)
+	fmt.Printf("connected to %s\n", conn.RemoteAddr().String())
 
 	quit := make(chan struct{})
 	listener, err := btc.NewListener(conn)

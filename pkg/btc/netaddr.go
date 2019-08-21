@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"time"
 )
 
 // NetAddr represents a network address as per the Bitcoin documentation at
@@ -21,9 +22,18 @@ type NetAddr struct {
 // Most integers are encoded in little endian.
 // Only IP or port number are encoded big endian.
 // https://en.bitcoin.it/wiki/Protocol_documentation#Common_structures
-func (addr NetAddr) Serialize() []byte {
+func (addr NetAddr) Serialize(timestamp bool) []byte {
 	var buf bytes.Buffer
 
+	// in some cases time should not be written,
+	// e.g. in the version message
+	if timestamp {
+		b := make([]byte, 4)
+		binary.LittleEndian.PutUint32(b, uint32(time.Now().Unix()))
+		buf.Write(b)
+	}
+
+	// services
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, addr.Services)
 	buf.Write(b)
@@ -32,6 +42,7 @@ func (addr NetAddr) Serialize() []byte {
 	// IP and Port are encoded in BigEndian...
 	buf.Write(addr.IP[:])
 
+	// port
 	binary.Write(&buf, binary.BigEndian, addr.Port)
 
 	return buf.Bytes()

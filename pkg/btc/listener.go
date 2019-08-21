@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	Version = 31800
+	Version = 60002
 
 	MagicMainNet  = 0xD9B4BEF9
 	MagicTestNet  = 0xDAB5BFFA

@@ -29,12 +29,14 @@ func NewMsgVersion(peerIP [16]byte, peerPort uint16) MsgVersion {
 		Services:  1,
 		Timestamp: uint64(time.Now().Unix()),
 		AddrRecv: NetAddr{
-			IP:   peerIP,
-			Port: peerPort,
+			Services: 1,
+			IP:       peerIP,
+			Port:     peerPort,
 		},
 		AddrFrom: NetAddr{
-			IP:   [16]byte{},
-			Port: 0,
+			Services: 1,
+			IP:       [16]byte{},
+			Port:     0,
 		},
 		Nonce:       randomNonce(),
 		UserAgent:   "github.com/penkovski/btclisten",
@@ -62,14 +64,16 @@ func (mv MsgVersion) Serialize() (data []byte) {
 	binary.LittleEndian.PutUint64(b, mv.Timestamp)
 	buf.Write(b)
 
-	buf.Write(mv.AddrRecv.Serialize())
-	buf.Write(mv.AddrFrom.Serialize())
+	buf.Write(mv.AddrRecv.Serialize(false))
+	buf.Write(mv.AddrFrom.Serialize(false))
 
 	b = make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, mv.Nonce)
 	buf.Write(b)
 
 	// TODO(penkovski): write user agent (optional)
+	buf.Write([]byte{0x00})
+	//buf.Write([]byte{0x0F, 0x2F, 0x53, 0x61, 0x74, 0x6F, 0x73, 0x68, 0x69, 0x3A, 0x30, 0x2E, 0x37, 0x2E, 0x32, 0x2F})
 
 	b = make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(mv.StartHeight))
