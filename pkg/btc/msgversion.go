@@ -23,8 +23,8 @@ type MsgVersion struct {
 	Relay       bool
 }
 
-func NewMsgVersion(peerIP [16]byte, peerPort uint16) MsgVersion {
-	msgver := MsgVersion{
+func NewMsgVersion(peerIP [16]byte, peerPort uint16) *MsgVersion {
+	msgver := &MsgVersion{
 		Version:   Version,
 		Services:  1,
 		Timestamp: uint64(time.Now().Unix()),
@@ -49,7 +49,7 @@ func NewMsgVersion(peerIP [16]byte, peerPort uint16) MsgVersion {
 
 // Serialize version protocol message. This is the
 // payload of the Msg.
-func (mv MsgVersion) Serialize() (data []byte) {
+func (mv *MsgVersion) Serialize() (data []byte) {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
@@ -84,7 +84,7 @@ func (mv MsgVersion) Serialize() (data []byte) {
 	return buf.Bytes()
 }
 
-func (mv MsgVersion) Deserialize(r io.Reader) error {
+func (mv *MsgVersion) Deserialize(r io.Reader) error {
 	buf, ok := r.(*bytes.Buffer)
 	if !ok {
 		return fmt.Errorf("[MsgVersion.Deserialize] reader is not a *bytes.Buffer")

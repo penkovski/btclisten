@@ -84,19 +84,21 @@ func (l *Listener) Handshake() error {
 	if err != nil {
 		return err
 	}
-	if !bytes.EqualFold(verack.Command[:], []byte("version")) {
+
+	cmdstr := string(bytes.TrimRight(verack.Command[:], string(0)))
+	if cmdstr != "version" {
 		return fmt.Errorf("expected version command, but received: %v", verack.Command)
 	}
 
 	// validate Checksum
-	first := sha256.Sum256(payload)
+	first := sha256.Sum256(verack.Payload)
 	second := sha256.Sum256(first[:])
 	if !bytes.Equal(verack.Checksum[0:4], second[0:4]) {
 		return fmt.Errorf("invalid checksum: %v, expected = %v", verack.Checksum, second[0:4])
 	}
 
 	peerMsgVersion := &MsgVersion{}
-	buf := bytes.NewBuffer(payload)
+	buf := bytes.NewBuffer(verack.Payload)
 	err = peerMsgVersion.Deserialize(buf)
 	if err != nil {
 		return fmt.Errorf("error deserializing version message payload: %v", err)
@@ -108,12 +110,12 @@ func (l *Listener) Handshake() error {
 }
 
 func (l *Listener) readVerAck() (Msg, error) {
-	msg := Msg{}
+	msg := &Msg{}
 	err := msg.Deserialize(l.conn)
 	if err != nil {
 		return Msg{}, err
 	}
-	return msg, err
+	return *msg, err
 }
 
 func (l *Listener) ping() {

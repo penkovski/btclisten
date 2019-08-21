@@ -21,11 +21,11 @@ type Msg struct {
 	Payload  []byte
 }
 
-func NewMsg(magic uint32, command string, payload []byte) Msg {
+func NewMsg(magic uint32, command string, payload []byte) *Msg {
 	var cmd [12]byte
 	copy(cmd[:], command)
 
-	msg := Msg{
+	msg := &Msg{
 		Magic:   magic,
 		Command: cmd,
 		Length:  uint32(len(payload)),
@@ -41,7 +41,7 @@ func NewMsg(magic uint32, command string, payload []byte) Msg {
 
 // Serialize the message and the payload to the
 // bytes slice returned in the response.
-func (m Msg) Serialize() []byte {
+func (m *Msg) Serialize() []byte {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
@@ -60,7 +60,7 @@ func (m Msg) Serialize() []byte {
 	return buf.Bytes()
 }
 
-func (m Msg) Deserialize(r io.Reader) error {
+func (m *Msg) Deserialize(r io.Reader) error {
 	var headerBytes [24]byte
 	_, err := io.ReadFull(r, headerBytes[:])
 	if err != nil {
@@ -106,7 +106,7 @@ func (m Msg) Deserialize(r io.Reader) error {
 
 	// read the Payload
 	payload := make([]byte, m.Length)
-	_, err = io.ReadFull(r, buf)
+	_, err = io.ReadFull(r, payload)
 	if err != nil {
 		return fmt.Errorf("error reading payload: %v", err)
 	}
