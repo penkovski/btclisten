@@ -78,6 +78,7 @@ func (l *Listener) Handshake() error {
 	if _, err := l.conn.Write(msg.Serialize()); err != nil {
 		return err
 	}
+	fmt.Println(" - send version message")
 
 	// read peer version response
 	verack, err := l.readVerAck()
@@ -85,37 +86,49 @@ func (l *Listener) Handshake() error {
 		return err
 	}
 
-	cmdstr := string(bytes.TrimRight(verack.Command[:], string(0)))
-	if cmdstr != "version" {
-		return fmt.Errorf("expected version command, but received: %v", verack.Command)
-	}
-
-	// validate Checksum
-	first := sha256.Sum256(verack.Payload)
-	second := sha256.Sum256(first[:])
-	if !bytes.Equal(verack.Checksum[0:4], second[0:4]) {
-		return fmt.Errorf("invalid checksum: %v, expected = %v", verack.Checksum, second[0:4])
-	}
-
-	peerMsgVersion := &MsgVersion{}
+	// deserialize version message payload
+	receivedMsgVersion := &MsgVersion{}
 	buf := bytes.NewBuffer(verack.Payload)
-	err = peerMsgVersion.Deserialize(buf)
+	err = receivedMsgVersion.Deserialize(buf)
 	if err != nil {
 		return fmt.Errorf("error deserializing version message payload: %v", err)
 	}
+	fmt.Println(" - receive version acknowledgement")
 
-	fmt.Println("peer version =", peerMsgVersion)
+	fmt.Println("peer version =", receivedMsgVersion)
+
+	// send version acknowledgement
+	msgVerAck := NewMsg(MagicMainNet, "verack", nil)
+	if _, err := l.conn.Write(msgVerAck.Serialize()); err != nil {
+		return err
+	}
+	fmt.Println(" - send version acknowledgement")
 
 	return err
 }
 
-func (l *Listener) readVerAck() (Msg, error) {
+func (l *Listener) readVerAck() (*Msg, error) {
 	msg := &Msg{}
 	err := msg.Deserialize(l.conn)
 	if err != nil {
-		return Msg{}, err
+		return nil, err
 	}
-	return *msg, err
+
+	// check that it's a version message
+	cmdstr := string(bytes.TrimRight(msg.Command[:], string(0)))
+	if cmdstr != "version" {
+		return nil, fmt.Errorf("expected version command, but received: %v", msg.Command)
+	}
+
+	// validate Checksum
+	first := sha256.Sum256(msg.Payload)
+	second := sha256.Sum256(first[:])
+	if !bytes.Equal(msg.Checksum[0:4], second[0:4]) {
+		return nil, fmt.Errorf("invalid checksum: %v, expected = %v", msg.Checksum, second[0:4])
+	}
+
+	// if all is well, return the message
+	return msg, err
 }
 
 func (l *Listener) ping() {

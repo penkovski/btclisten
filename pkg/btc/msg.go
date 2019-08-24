@@ -54,8 +54,10 @@ func (m *Msg) Serialize() []byte {
 	binary.LittleEndian.PutUint32(b, m.Length)
 	buf.Write(b)
 
-	buf.Write(m.Checksum[:])
-	buf.Write(m.Payload)
+	if m.Length > 0 {
+		buf.Write(m.Checksum[:])
+		buf.Write(m.Payload)
+	}
 
 	return buf.Bytes()
 }
