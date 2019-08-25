@@ -1,23 +1,10 @@
 ## Bitcoin Protocol Listener
 
-TODO
-
-### About the project
-
-TODO
-
-### Sequence Diagram
-
-TODO
+Work in progress.
 
 ### Usage
 
-TODO
-
-### Running Tests
-
-TODO
-
-### Contribution
-
-TODO
+```
+cd cmd/btclisten
+go run main.go -seedip 185.25.48.184
+```
