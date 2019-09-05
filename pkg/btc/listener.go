@@ -1,7 +1,6 @@
 package btc
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
@@ -12,7 +11,7 @@ import (
 )
 
 const (
-	Version = 60002
+	Version = 70015
 
 	MagicMainNet  = 0xD9B4BEF9
 	MagicTestNet  = 0xDAB5BFFA
@@ -57,6 +56,8 @@ func (l *Listener) Start(quit chan struct{}) {
 		return
 	}
 
+	fmt.Println("listening...")
+
 	l.Listen(l.conn)
 }
 
@@ -74,75 +75,109 @@ func (l *Listener) Handshake() error {
 	// send version message
 	msgver := NewMsgVersion(l.peerIP, l.peerPort)
 	payload := msgver.Serialize()
-	msg := NewMsg(MagicMainNet, "version", payload)
+	msg := NewMsgEnvelope(MagicMainNet, "version", payload)
 	if _, err := l.conn.Write(msg.Serialize()); err != nil {
 		return err
 	}
-	fmt.Println(" - send version message")
+	fmt.Println(" - send version")
 
-	// read peer version response
-	verack, err := l.readVerAck()
-	if err != nil {
-		return err
-	}
-
-	// deserialize version message payload
-	receivedMsgVersion := &MsgVersion{}
-	buf := bytes.NewBuffer(verack.Payload)
-	err = receivedMsgVersion.Deserialize(buf)
-	if err != nil {
-		return fmt.Errorf("error deserializing version message payload: %v", err)
-	}
-	fmt.Println(" - receive version acknowledgement")
-
-	fmt.Println("peer version =", receivedMsgVersion)
-
-	// send version acknowledgement
-	msgVerAck := NewMsg(MagicMainNet, "verack", nil)
-	if _, err := l.conn.Write(msgVerAck.Serialize()); err != nil {
-		return err
-	}
-	fmt.Println(" - send version acknowledgement")
-
-	return err
-}
-
-func (l *Listener) readVerAck() (*Msg, error) {
-	msg := &Msg{}
+	msg = &MsgEnvelope{}
 	err := msg.Deserialize(l.conn)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// check that it's a version message
 	cmdstr := string(bytes.TrimRight(msg.Command[:], string(0)))
 	if cmdstr != "version" {
-		return nil, fmt.Errorf("expected version command, but received: %v", msg.Command)
+		return fmt.Errorf("expected version command, but received: %v", msg.Command)
 	}
 
 	// validate Checksum
 	first := sha256.Sum256(msg.Payload)
 	second := sha256.Sum256(first[:])
 	if !bytes.Equal(msg.Checksum[0:4], second[0:4]) {
-		return nil, fmt.Errorf("invalid checksum: %v, expected = %v", msg.Checksum, second[0:4])
+		return fmt.Errorf("invalid checksum: %v, expected = %v", msg.Checksum, second[0:4])
 	}
 
-	// if all is well, return the message
-	return msg, err
+	// deserialize version message payload
+	receivedMsgVersion := &MsgVersion{}
+	buf := bytes.NewBuffer(msg.Payload)
+	err = receivedMsgVersion.Deserialize(buf)
+	if err != nil {
+		return fmt.Errorf("error deserializing version message payload: %v", err)
+	}
+	fmt.Printf(" - received peer version: %+v\n", receivedMsgVersion)
+
+	//err := msg.Deserialize(l.conn)
+
+	// send version acknowledgement
+	msgVerAck := NewMsgEnvelope(MagicMainNet, "verack", nil)
+	if _, err := l.conn.Write(msgVerAck.Serialize()); err != nil {
+		return err
+	}
+	fmt.Printf(" - send verack: %+v\n", msgVerAck.Serialize())
+
+	msg = &MsgEnvelope{}
+	err = msg.Deserialize(l.conn)
+	if err != nil {
+		return err
+	}
+
+	// check that it's a verack message
+	cmdstr = string(bytes.TrimRight(msg.Command[:], string(0)))
+	if cmdstr != "verack" {
+		return fmt.Errorf("expected version command, but received: %v", msg.Command)
+	}
+	fmt.Printf(" - received verack: %+v\n", msg)
+
+	return nil
 }
+
+//func (l *Listener) readVerAck() (*MsgEnvelope, error) {
+//	msg := &MsgEnvelope{}
+//	err := msg.Deserialize(l.conn)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	// check that it's a verack message
+//	cmdstr := string(bytes.TrimRight(msg.Command[:], string(0)))
+//	if cmdstr != "verack" {
+//		return nil, fmt.Errorf("expected version command, but received: %v", msg.Command)
+//	}
+//
+//	// validate Checksum
+//	first := sha256.Sum256(msg.Payload)
+//	second := sha256.Sum256(first[:])
+//	if !bytes.Equal(msg.Checksum[0:4], second[0:4]) {
+//		return nil, fmt.Errorf("invalid checksum: %v, expected = %v", msg.Checksum, second[0:4])
+//	}
+//
+//	// if all is well, return the message
+//	return msg, err
+//}
 
 func (l *Listener) ping() {
 
 }
 
 func (l *Listener) Listen(conn net.Conn) {
-	const maxBufSize = 1 << 16
-	buf := make([]byte, maxBufSize)
-	scanner := bufio.NewScanner(conn)
-	scanner.Buffer(buf, maxBufSize)
-	for scanner.Scan() {
-		message := scanner.Text()
-		fmt.Println(message)
+	// listen for messages
+	for {
+		msg := &MsgEnvelope{}
+		err := msg.Deserialize(l.conn)
+		if err != nil {
+			return
+		}
+
+		fmt.Println("--- received message ---")
+		fmt.Println(msg)
+		fmt.Printf("magic = %x\n", msg.Magic)
+		fmt.Printf("command = %s\n", msg.Command)
+		fmt.Printf("length = %d\n", msg.Length)
+		fmt.Printf("checksum = %x\n", msg.Checksum)
+		fmt.Printf("payload = %x\n", msg.Payload)
 	}
 }
 

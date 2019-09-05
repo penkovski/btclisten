@@ -9,11 +9,11 @@ import (
 )
 
 // MaxMessagePayload is the maximum size of the message payload.
-const MaxMessagePayload = (1024 * 1024 * 16) // 16MB
+const MaxMessagePayload = 1024 * 1024 * 16 // 16MB
 
-// Msg represents the structure of a bitcoin protocol message.
+// MsgEnvelope represents the structure of a bitcoin protocol message.
 // https://en.bitcoin.it/wiki/Protocol_documentation#Message_structure
-type Msg struct {
+type MsgEnvelope struct {
 	Magic    uint32
 	Command  [12]byte
 	Length   uint32
@@ -21,11 +21,11 @@ type Msg struct {
 	Payload  []byte
 }
 
-func NewMsg(magic uint32, command string, payload []byte) *Msg {
+func NewMsgEnvelope(magic uint32, command string, payload []byte) *MsgEnvelope {
 	var cmd [12]byte
 	copy(cmd[:], command)
 
-	msg := &Msg{
+	msg := &MsgEnvelope{
 		Magic:   magic,
 		Command: cmd,
 		Length:  uint32(len(payload)),
@@ -39,9 +39,8 @@ func NewMsg(magic uint32, command string, payload []byte) *Msg {
 	return msg
 }
 
-// Serialize the message and the payload to the
-// bytes slice returned in the response.
-func (m *Msg) Serialize() []byte {
+// Serialize the message and the payload.
+func (m *MsgEnvelope) Serialize() []byte {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
@@ -54,20 +53,25 @@ func (m *Msg) Serialize() []byte {
 	binary.LittleEndian.PutUint32(b, m.Length)
 	buf.Write(b)
 
+	buf.Write(m.Checksum[:])
+
 	if m.Length > 0 {
-		buf.Write(m.Checksum[:])
 		buf.Write(m.Payload)
 	}
 
 	return buf.Bytes()
 }
 
-func (m *Msg) Deserialize(r io.Reader) error {
+// Deserialize reads directly from the underlying TCP connection
+// to construct the message envelope.
+func (m *MsgEnvelope) Deserialize(r io.Reader) error {
 	var headerBytes [24]byte
 	_, err := io.ReadFull(r, headerBytes[:])
 	if err != nil {
 		return fmt.Errorf("error reading header bytes: %v", err)
 	}
+
+	fmt.Println("headerBytes = ", headerBytes)
 
 	header := bytes.NewReader(headerBytes[:])
 
@@ -105,6 +109,11 @@ func (m *Msg) Deserialize(r io.Reader) error {
 		return fmt.Errorf("error reading checksum: %v", err)
 	}
 	copy(m.Checksum[:], buf[:])
+
+	// don't read payload if len is zero
+	if m.Length == 0 {
+		return nil
+	}
 
 	// read the Payload
 	payload := make([]byte, m.Length)

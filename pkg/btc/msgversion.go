@@ -40,7 +40,7 @@ func NewMsgVersion(peerIP [16]byte, peerPort uint16) *MsgVersion {
 		},
 		Nonce:       randomNonce(),
 		UserAgent:   "github.com/penkovski/btclisten",
-		StartHeight: -1,
+		StartHeight: 0,
 		Relay:       false,
 	}
 
@@ -48,7 +48,7 @@ func NewMsgVersion(peerIP [16]byte, peerPort uint16) *MsgVersion {
 }
 
 // Serialize version protocol message. This is the
-// payload of the Msg.
+// payload of the MsgEnvelope.
 func (mv *MsgVersion) Serialize() (data []byte) {
 	var buf bytes.Buffer
 
