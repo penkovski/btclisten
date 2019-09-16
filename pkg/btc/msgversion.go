@@ -23,6 +23,9 @@ type MsgVersion struct {
 	Relay       bool
 }
 
+// NewMsgVersion returns a version message with IP and Port of the
+// connecting peer, which is intended to be send to another peer as
+// part of the initial peer-to-peer connection handshake.
 func NewMsgVersion(peerIP [16]byte, peerPort uint16) *MsgVersion {
 	msgver := &MsgVersion{
 		Version:   Version,
@@ -47,8 +50,7 @@ func NewMsgVersion(peerIP [16]byte, peerPort uint16) *MsgVersion {
 	return msgver
 }
 
-// Serialize version protocol message. This is the
-// payload of the MsgEnvelope.
+// Serialize version protocol message.
 func (mv *MsgVersion) Serialize() (data []byte) {
 	var buf bytes.Buffer
 
@@ -73,7 +75,6 @@ func (mv *MsgVersion) Serialize() (data []byte) {
 
 	// TODO(penkovski): write user agent (optional)
 	buf.Write([]byte{0x00})
-	//buf.Write([]byte{0x0F, 0x2F, 0x53, 0x61, 0x74, 0x6F, 0x73, 0x68, 0x69, 0x3A, 0x30, 0x2E, 0x37, 0x2E, 0x32, 0x2F})
 
 	b = make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(mv.StartHeight))

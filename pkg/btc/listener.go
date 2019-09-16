@@ -23,6 +23,8 @@ type Listener struct {
 	peerIP   [16]byte
 	peerPort uint16
 
+	stop chan struct{}
+
 	conn net.Conn
 }
 
@@ -40,6 +42,7 @@ func NewListener(conn net.Conn) (*Listener, error) {
 		conn:     conn,
 		peerIP:   peerIP,
 		peerPort: port,
+		stop:     make(chan struct{}),
 	}
 
 	return l, nil
@@ -47,8 +50,8 @@ func NewListener(conn net.Conn) (*Listener, error) {
 
 // Start should be executed in its own go routine
 // if you don't want to block when calling it.
-func (l *Listener) Start(quit chan struct{}) {
-	defer func() { quit <- struct{}{} }()
+func (l *Listener) Start(notifyQuit chan struct{}) {
+	defer func() { notifyQuit <- struct{}{} }()
 
 	err := l.Handshake()
 	if err != nil {
@@ -59,6 +62,10 @@ func (l *Listener) Start(quit chan struct{}) {
 	fmt.Println("listening...")
 
 	l.Listen(l.conn)
+}
+
+func (l *Listener) Stop() {
+	l.stop <- struct{}{}
 }
 
 // Handshake initiates the exchange of version messages between
@@ -109,8 +116,6 @@ func (l *Listener) Handshake() error {
 	}
 	fmt.Printf(" - received peer version: %+v\n", receivedMsgVersion)
 
-	//err := msg.Deserialize(l.conn)
-
 	// send version acknowledgement
 	msgVerAck := NewMsgEnvelope(MagicMainNet, "verack", nil)
 	if _, err := l.conn.Write(msgVerAck.Serialize()); err != nil {
@@ -134,50 +139,27 @@ func (l *Listener) Handshake() error {
 	return nil
 }
 
-//func (l *Listener) readVerAck() (*MsgEnvelope, error) {
-//	msg := &MsgEnvelope{}
-//	err := msg.Deserialize(l.conn)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	// check that it's a verack message
-//	cmdstr := string(bytes.TrimRight(msg.Command[:], string(0)))
-//	if cmdstr != "verack" {
-//		return nil, fmt.Errorf("expected version command, but received: %v", msg.Command)
-//	}
-//
-//	// validate Checksum
-//	first := sha256.Sum256(msg.Payload)
-//	second := sha256.Sum256(first[:])
-//	if !bytes.Equal(msg.Checksum[0:4], second[0:4]) {
-//		return nil, fmt.Errorf("invalid checksum: %v, expected = %v", msg.Checksum, second[0:4])
-//	}
-//
-//	// if all is well, return the message
-//	return msg, err
-//}
-
-func (l *Listener) ping() {
-
-}
-
 func (l *Listener) Listen(conn net.Conn) {
 	// listen for messages
 	for {
-		msg := &MsgEnvelope{}
-		err := msg.Deserialize(l.conn)
-		if err != nil {
+		select {
+		case <-l.stop:
 			return
-		}
+		default:
+			msg := &MsgEnvelope{}
+			err := msg.Deserialize(l.conn)
+			if err != nil {
+				return
+			}
 
-		fmt.Println("--- received message ---")
-		fmt.Println(msg)
-		fmt.Printf("magic = %x\n", msg.Magic)
-		fmt.Printf("command = %s\n", msg.Command)
-		fmt.Printf("length = %d\n", msg.Length)
-		fmt.Printf("checksum = %x\n", msg.Checksum)
-		fmt.Printf("payload = %x\n", msg.Payload)
+			fmt.Println("--- received message ---")
+			fmt.Println(msg)
+			fmt.Printf("magic = %x\n", msg.Magic)
+			fmt.Printf("command = %s\n", msg.Command)
+			fmt.Printf("length = %d\n", msg.Length)
+			fmt.Printf("checksum = %x\n", msg.Checksum)
+			fmt.Printf("payload = %x\n", msg.Payload)
+		}
 	}
 }
 

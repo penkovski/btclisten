@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/penkovski/btclisten/pkg/btc"
 )
@@ -40,8 +42,16 @@ func main() {
 	}
 	go listener.Start(quit)
 
-	// TODO(penkovski): CTRL-C handler
+	// handle CTRL+C
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	select {
+	case <-quit:
+		break
+	case <-c:
+		listener.Stop()
+		<-quit
+	}
 
-	<-quit
 	fmt.Println("disconnected")
 }
