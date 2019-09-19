@@ -2,17 +2,15 @@ package btc
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"strconv"
+
+	"github.com/penkovski/btclisten/pkg/msg"
 )
 
 const (
-	Version = 70015
-
 	MagicMainNet  = 0xD9B4BEF9
 	MagicTestNet  = 0xDAB5BFFA
 	MagicTestNet3 = 0x0709110B
@@ -50,8 +48,8 @@ func NewListener(conn net.Conn) (*Listener, error) {
 
 // Start should be executed in its own go routine
 // if you don't want to block when calling it.
-func (l *Listener) Start(notifyQuit chan struct{}) {
-	defer func() { notifyQuit <- struct{}{} }()
+func (l *Listener) Start(notifyDone chan struct{}) {
+	defer func() { notifyDone <- struct{}{} }()
 
 	err := l.Handshake()
 	if err != nil {
@@ -80,36 +78,36 @@ func (l *Listener) Handshake() error {
 	fmt.Println("initiate handshake...")
 
 	// send version message
-	msgver := NewMsgVersion(l.peerIP, l.peerPort)
+	msgver := msg.NewVersion(l.peerIP, l.peerPort)
 	payload := msgver.Serialize()
-	msg := NewMsgEnvelope(MagicMainNet, "version", payload)
-	if _, err := l.conn.Write(msg.Serialize()); err != nil {
+	m := msg.New(MagicMainNet, "version", payload)
+	if _, err := l.conn.Write(m.Serialize()); err != nil {
 		return err
 	}
 	fmt.Println(" - send version")
 
-	msg = &MsgEnvelope{}
-	err := msg.Deserialize(l.conn)
+	m = &msg.Envelope{}
+	err := m.Deserialize(l.conn)
 	if err != nil {
 		return err
 	}
 
 	// check that it's a version message
-	cmdstr := string(bytes.TrimRight(msg.Command[:], string(0)))
+	cmdstr := string(bytes.TrimRight(m.Command[:], string(0)))
 	if cmdstr != "version" {
-		return fmt.Errorf("expected version command, but received: %v", msg.Command)
+		return fmt.Errorf("expected version command, but received: %v", m.Command)
 	}
 
 	// validate Checksum
-	first := sha256.Sum256(msg.Payload)
+	first := sha256.Sum256(m.Payload)
 	second := sha256.Sum256(first[:])
-	if !bytes.Equal(msg.Checksum[0:4], second[0:4]) {
-		return fmt.Errorf("invalid checksum: %v, expected = %v", msg.Checksum, second[0:4])
+	if !bytes.Equal(m.Checksum[0:4], second[0:4]) {
+		return fmt.Errorf("invalid checksum: %v, expected = %v", m.Checksum, second[0:4])
 	}
 
 	// deserialize version message payload
-	receivedMsgVersion := &MsgVersion{}
-	buf := bytes.NewBuffer(msg.Payload)
+	receivedMsgVersion := &msg.Version{}
+	buf := bytes.NewBuffer(m.Payload)
 	err = receivedMsgVersion.Deserialize(buf)
 	if err != nil {
 		return fmt.Errorf("error deserializing version message payload: %v", err)
@@ -117,24 +115,24 @@ func (l *Listener) Handshake() error {
 	fmt.Printf(" - received peer version: %+v\n", receivedMsgVersion)
 
 	// send version acknowledgement
-	msgVerAck := NewMsgEnvelope(MagicMainNet, "verack", nil)
+	msgVerAck := msg.New(MagicMainNet, "verack", nil)
 	if _, err := l.conn.Write(msgVerAck.Serialize()); err != nil {
 		return err
 	}
 	fmt.Printf(" - send verack: %+v\n", msgVerAck.Serialize())
 
-	msg = &MsgEnvelope{}
-	err = msg.Deserialize(l.conn)
+	m = &msg.Envelope{}
+	err = m.Deserialize(l.conn)
 	if err != nil {
 		return err
 	}
 
 	// check that it's a verack message
-	cmdstr = string(bytes.TrimRight(msg.Command[:], string(0)))
+	cmdstr = string(bytes.TrimRight(m.Command[:], string(0)))
 	if cmdstr != "verack" {
-		return fmt.Errorf("expected version command, but received: %v", msg.Command)
+		return fmt.Errorf("expected version command, but received: %v", m.Command)
 	}
-	fmt.Printf(" - received verack: %+v\n", msg)
+	fmt.Printf(" - received verack: %+v\n", m)
 
 	return nil
 }
@@ -146,7 +144,7 @@ func (l *Listener) Listen(conn net.Conn) {
 		case <-l.stop:
 			return
 		default:
-			msg := &MsgEnvelope{}
+			msg := &msg.Envelope{}
 			err := msg.Deserialize(l.conn)
 			if err != nil {
 				return
@@ -186,13 +184,4 @@ func addrIpPort(addr net.Addr) (ip string, port uint16, err error) {
 	port = uint16(p)
 
 	return ip, port, nil
-}
-
-func randomNonce() uint64 {
-	buf := make([]byte, 8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		return 0
-	}
-	return binary.BigEndian.Uint64(buf)
 }

@@ -1,4 +1,4 @@
-package btc
+package msg
 
 import (
 	"bytes"
@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// MsgVersion is the initial version message that is exchanged between a
+// Version is the initial version message that is exchanged between a
 // connecting node and its peer.
 // https://en.bitcoin.it/wiki/Protocol_documentation#version
-type MsgVersion struct {
+type Version struct {
 	Version     uint32
 	Services    uint64
 	Timestamp   uint64
@@ -23,12 +23,12 @@ type MsgVersion struct {
 	Relay       bool
 }
 
-// NewMsgVersion returns a version message with IP and Port of the
+// NewVersion returns a version message with IP and Port of the
 // connecting peer, which is intended to be send to another peer as
 // part of the initial peer-to-peer connection handshake.
-func NewMsgVersion(peerIP [16]byte, peerPort uint16) *MsgVersion {
-	msgver := &MsgVersion{
-		Version:   Version,
+func NewVersion(peerIP [16]byte, peerPort uint16) *Version {
+	msgver := &Version{
+		Version:   ProtocolVersion,
 		Services:  1,
 		Timestamp: uint64(time.Now().Unix()),
 		AddrRecv: NetAddr{
@@ -51,33 +51,33 @@ func NewMsgVersion(peerIP [16]byte, peerPort uint16) *MsgVersion {
 }
 
 // Serialize version protocol message.
-func (mv *MsgVersion) Serialize() (data []byte) {
+func (v *Version) Serialize() (data []byte) {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, mv.Version)
+	binary.LittleEndian.PutUint32(b, v.Version)
 	buf.Write(b)
 
 	b = make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, mv.Services)
+	binary.LittleEndian.PutUint64(b, v.Services)
 	buf.Write(b)
 
 	b = make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, mv.Timestamp)
+	binary.LittleEndian.PutUint64(b, v.Timestamp)
 	buf.Write(b)
 
-	buf.Write(mv.AddrRecv.Serialize(false))
-	buf.Write(mv.AddrFrom.Serialize(false))
+	buf.Write(v.AddrRecv.Serialize(false))
+	buf.Write(v.AddrFrom.Serialize(false))
 
 	b = make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, mv.Nonce)
+	binary.LittleEndian.PutUint64(b, v.Nonce)
 	buf.Write(b)
 
 	// TODO(penkovski): write user agent (optional)
 	buf.Write([]byte{0x00})
 
 	b = make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(mv.StartHeight))
+	binary.LittleEndian.PutUint32(b, uint32(v.StartHeight))
 	buf.Write(b)
 
 	// TODO(penkovski): write Relay (optional)
@@ -85,10 +85,10 @@ func (mv *MsgVersion) Serialize() (data []byte) {
 	return buf.Bytes()
 }
 
-func (mv *MsgVersion) Deserialize(r io.Reader) error {
+func (v *Version) Deserialize(r io.Reader) error {
 	buf, ok := r.(*bytes.Buffer)
 	if !ok {
-		return fmt.Errorf("[MsgVersion.Deserialize] reader is not a *bytes.Buffer")
+		return fmt.Errorf("[Version.Deserialize] reader is not a *bytes.Buffer")
 	}
 
 	// protocol version
@@ -96,30 +96,30 @@ func (mv *MsgVersion) Deserialize(r io.Reader) error {
 	if _, err := io.ReadFull(buf, b); err != nil {
 		return err
 	}
-	mv.Version = binary.LittleEndian.Uint32(b)
+	v.Version = binary.LittleEndian.Uint32(b)
 
 	// services
 	b = make([]byte, 8)
 	if _, err := io.ReadFull(buf, b); err != nil {
 		return err
 	}
-	mv.Services = binary.LittleEndian.Uint64(b)
+	v.Services = binary.LittleEndian.Uint64(b)
 
 	// timestamp
 	b = make([]byte, 8)
 	if _, err := io.ReadFull(buf, b); err != nil {
 		return err
 	}
-	mv.Timestamp = binary.LittleEndian.Uint64(b)
+	v.Timestamp = binary.LittleEndian.Uint64(b)
 
 	// addr peer
-	mv.AddrRecv.Deserialize(buf)
+	v.AddrRecv.Deserialize(buf)
 
 	// Protocol versions >= 106 added a from address, nonce, and user agent
 	// field and they are only considered present if there are bytes
 	// remaining in the message.
 	if buf.Len() > 0 {
-		mv.AddrFrom.Deserialize(buf)
+		v.AddrFrom.Deserialize(buf)
 	}
 
 	// nonce
@@ -128,7 +128,7 @@ func (mv *MsgVersion) Deserialize(r io.Reader) error {
 		if _, err := io.ReadFull(buf, b); err != nil {
 			return err
 		}
-		mv.Nonce = binary.LittleEndian.Uint64(b)
+		v.Nonce = binary.LittleEndian.Uint64(b)
 	}
 
 	// user agent

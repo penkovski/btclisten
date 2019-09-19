@@ -35,22 +35,22 @@ func main() {
 
 	fmt.Printf("connected to %s\n", conn.RemoteAddr().String())
 
-	quit := make(chan struct{})
+	done := make(chan struct{})
 	listener, err := btc.NewListener(conn)
 	if err != nil {
 		log.Fatal(err)
 	}
-	go listener.Start(quit)
+	go listener.Start(done)
 
 	// handle CTRL+C
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	select {
-	case <-quit:
+	case <-done:
 		break
 	case <-c:
 		listener.Stop()
-		<-quit
+		<-done
 	}
 
 	fmt.Println("disconnected")

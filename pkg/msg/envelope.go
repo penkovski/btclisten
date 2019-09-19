@@ -1,4 +1,4 @@
-package btc
+package msg
 
 import (
 	"bytes"
@@ -8,12 +8,14 @@ import (
 	"io"
 )
 
+const ProtocolVersion = 70015
+
 // MaxMessagePayload is the maximum size of the message payload.
 const MaxMessagePayload = 1024 * 1024 * 16 // 16MB
 
-// MsgEnvelope represents the structure of a bitcoin protocol message.
+// Envelope represents the structure of a bitcoin protocol message.
 // https://en.bitcoin.it/wiki/Protocol_documentation#Message_structure
-type MsgEnvelope struct {
+type Envelope struct {
 	Magic    uint32
 	Command  [12]byte
 	Length   uint32
@@ -21,11 +23,11 @@ type MsgEnvelope struct {
 	Payload  []byte
 }
 
-func NewMsgEnvelope(magic uint32, command string, payload []byte) *MsgEnvelope {
+func New(magic uint32, command string, payload []byte) *Envelope {
 	var cmd [12]byte
 	copy(cmd[:], command)
 
-	msg := &MsgEnvelope{
+	msg := &Envelope{
 		Magic:   magic,
 		Command: cmd,
 		Length:  uint32(len(payload)),
@@ -40,7 +42,7 @@ func NewMsgEnvelope(magic uint32, command string, payload []byte) *MsgEnvelope {
 }
 
 // Serialize the message and the payload.
-func (m *MsgEnvelope) Serialize() []byte {
+func (m *Envelope) Serialize() []byte {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
@@ -62,9 +64,9 @@ func (m *MsgEnvelope) Serialize() []byte {
 	return buf.Bytes()
 }
 
-// Deserialize reads directly from the underlying TCP connection
-// to construct the message envelope.
-func (m *MsgEnvelope) Deserialize(r io.Reader) error {
+// Deserialize reads from io.Reader until a message
+// envelope is populated, including a raw payload.
+func (m *Envelope) Deserialize(r io.Reader) error {
 	var headerBytes [24]byte
 	_, err := io.ReadFull(r, headerBytes[:])
 	if err != nil {
