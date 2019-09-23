@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"net"
-	"strconv"
 
 	"github.com/penkovski/btclisten/pkg/msg"
 )
@@ -18,8 +17,7 @@ const (
 )
 
 type Listener struct {
-	peerIP   [16]byte
-	peerPort uint16
+	seedNode *Peer
 
 	stop chan struct{}
 
@@ -27,19 +25,14 @@ type Listener struct {
 }
 
 func NewListener(conn net.Conn) (*Listener, error) {
-	// extract host and port
-	ip, port, err := addrIpPort(conn.RemoteAddr())
+	seedNode, err := NewPeer(conn)
 	if err != nil {
 		return nil, err
 	}
 
-	var peerIP [16]byte
-	copy(peerIP[:], ip)
-
 	l := &Listener{
 		conn:     conn,
-		peerIP:   peerIP,
-		peerPort: port,
+		seedNode: seedNode,
 		stop:     make(chan struct{}),
 	}
 
@@ -78,7 +71,7 @@ func (l *Listener) Handshake() error {
 	fmt.Println("initiate handshake...")
 
 	// send version message
-	msgver := msg.NewVersion(l.peerIP, l.peerPort)
+	msgver := msg.NewVersion(l.seedNode.IP, l.seedNode.Port)
 	payload := msgver.Serialize()
 	m := msg.New(MagicMainNet, "version", payload)
 	if _, err := l.conn.Write(m.Serialize()); err != nil {
@@ -159,29 +152,4 @@ func (l *Listener) Listen(conn net.Conn) {
 			fmt.Printf("payload = %x\n", msg.Payload)
 		}
 	}
-}
-
-func addrIpPort(addr net.Addr) (ip string, port uint16, err error) {
-	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
-		ip = tcpAddr.IP.String()
-		port = uint16(tcpAddr.Port)
-		return ip, port, nil
-	}
-
-	// For the most part, addr should be one of the two above cases, but
-	// to be safe, fall back to trying to parse the information from the
-	// address string as a last resort.
-	host, portStr, err := net.SplitHostPort(addr.String())
-	if err != nil {
-		return "", 0, err
-	}
-	ipAddr := net.ParseIP(host)
-	p, err := strconv.ParseUint(portStr, 10, 16)
-	if err != nil {
-		return "", 0, err
-	}
-	ip = ipAddr.String()
-	port = uint16(p)
-
-	return ip, port, nil
 }
