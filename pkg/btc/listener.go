@@ -75,20 +75,21 @@ func (l *Listener) Handshake() error {
 	payload := msgver.Serialize()
 	m := msg.New(MagicMainNet, "version", payload)
 	if _, err := l.conn.Write(m.Serialize()); err != nil {
-		return err
+		return fmt.Errorf("error sending version message: %v", err)
 	}
-	fmt.Println(" - send version")
+	fmt.Println(" ✓ send version")
 
 	m = &msg.Envelope{}
 	err := m.Deserialize(l.conn)
 	if err != nil {
 		return err
 	}
+	fmt.Println(" ✓ received peer version")
 
 	// check that it's a version message
 	cmdstr := string(bytes.TrimRight(m.Command[:], string(0)))
 	if cmdstr != "version" {
-		return fmt.Errorf("expected version command, but received: %v", m.Command)
+		return fmt.Errorf("expected version message, but received: %v", m.Command)
 	}
 
 	// validate Checksum
@@ -97,6 +98,7 @@ func (l *Listener) Handshake() error {
 	if !bytes.Equal(m.Checksum[0:4], second[0:4]) {
 		return fmt.Errorf("invalid checksum: %v, expected = %v", m.Checksum, second[0:4])
 	}
+	fmt.Println(" ✓ validate peer version")
 
 	// deserialize version message payload
 	receivedMsgVersion := &msg.Version{}
@@ -105,14 +107,13 @@ func (l *Listener) Handshake() error {
 	if err != nil {
 		return fmt.Errorf("error deserializing version message payload: %v", err)
 	}
-	fmt.Printf(" - received peer version: %+v\n", receivedMsgVersion)
 
 	// send version acknowledgement
 	msgVerAck := msg.New(MagicMainNet, "verack", nil)
 	if _, err := l.conn.Write(msgVerAck.Serialize()); err != nil {
 		return err
 	}
-	fmt.Printf(" - send verack: %+v\n", msgVerAck.Serialize())
+	fmt.Println(" ✓ send verack")
 
 	m = &msg.Envelope{}
 	err = m.Deserialize(l.conn)
@@ -125,7 +126,9 @@ func (l *Listener) Handshake() error {
 	if cmdstr != "verack" {
 		return fmt.Errorf("expected version command, but received: %v", m.Command)
 	}
-	fmt.Printf(" - received verack: %+v\n", m)
+	fmt.Println(" ✓ received peer verack")
+
+	fmt.Println(" ✓ handshake completed")
 
 	return nil
 }
