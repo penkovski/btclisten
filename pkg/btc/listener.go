@@ -39,9 +39,12 @@ func NewListener(conn net.Conn) (*Listener, error) {
 	return l, nil
 }
 
-// Start should be executed in its own go routine
+// Run should be executed in its own go routine
 // if you don't want to block when calling it.
-func (l *Listener) Start(notifyDone chan struct{}) {
+func (l *Listener) Run(notifyDone chan struct{}) {
+	// upon exiting the function, the listener
+	// will notify that it's quitting and the
+	// program will terminate itself
 	defer func() { notifyDone <- struct{}{} }()
 
 	err := l.Handshake()

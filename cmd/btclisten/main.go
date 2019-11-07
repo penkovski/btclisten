@@ -13,7 +13,9 @@ import (
 )
 
 var (
-	seedNodeIP   string
+	// seedNodeIP specifies the initial IP to connect to
+	seedNodeIP string
+	// seedNodePort specifies the initial PORT to connect to
 	seedNodePort string
 )
 
@@ -40,15 +42,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go listener.Start(done)
+	go listener.Run(done)
 
 	// handle CTRL+C
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	sigch := make(chan os.Signal)
+	signal.Notify(sigch, os.Interrupt, syscall.SIGTERM)
 	select {
 	case <-done:
 		break
-	case <-c:
+	case <-sigch:
 		listener.Stop()
 		<-done
 	}
