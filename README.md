@@ -4,7 +4,7 @@
 
 Work in progress.
 
-### Usage
+### Try it
 
 ```
 cd cmd/btclisten
