@@ -82,7 +82,7 @@ func (l *Listener) Handshake() error {
 	}
 	fmt.Println(" ✓ send version")
 
-	m = &msg.Envelope{}
+	m = &msg.Message{}
 	err := m.Deserialize(l.conn)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (l *Listener) Handshake() error {
 	}
 	fmt.Println(" ✓ send verack")
 
-	m = &msg.Envelope{}
+	m = &msg.Message{}
 	err = m.Deserialize(l.conn)
 	if err != nil {
 		return err
@@ -143,19 +143,19 @@ func (l *Listener) Listen(conn net.Conn) {
 		case <-l.stop:
 			return
 		default:
-			msg := &msg.Envelope{}
-			err := msg.Deserialize(l.conn)
+			m := &msg.Message{}
+			err := m.Deserialize(l.conn)
 			if err != nil {
 				return
 			}
 
 			fmt.Println("--- received message ---")
-			fmt.Println(msg)
-			fmt.Printf("magic = %x\n", msg.Magic)
-			fmt.Printf("command = %s\n", msg.Command)
-			fmt.Printf("length = %d\n", msg.Length)
-			fmt.Printf("checksum = %x\n", msg.Checksum)
-			fmt.Printf("payload = %x\n", msg.Payload)
+			fmt.Println(m)
+			fmt.Printf("magic = %x\n", m.Magic)
+			fmt.Printf("command = %s\n", m.Command)
+			fmt.Printf("length = %d\n", m.Length)
+			fmt.Printf("checksum = %x\n", m.Checksum)
+			fmt.Printf("payload = %x\n", m.Payload)
 		}
 	}
 }

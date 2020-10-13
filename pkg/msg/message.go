@@ -13,9 +13,9 @@ const ProtocolVersion = 70015
 // MaxMessagePayload is the maximum size of the message payload.
 const MaxMessagePayload = 1024 * 1024 * 16 // 16MB
 
-// Envelope represents the structure of a bitcoin protocol message.
+// Message represents the structure of a bitcoin protocol message.
 // https://en.bitcoin.it/wiki/Protocol_documentation#Message_structure
-type Envelope struct {
+type Message struct {
 	Magic    uint32
 	Command  [12]byte
 	Length   uint32
@@ -23,11 +23,11 @@ type Envelope struct {
 	Payload  []byte
 }
 
-func New(magic uint32, command string, payload []byte) *Envelope {
+func New(magic uint32, command string, payload []byte) *Message {
 	var cmd [12]byte
 	copy(cmd[:], command)
 
-	msg := &Envelope{
+	msg := &Message{
 		Magic:   magic,
 		Command: cmd,
 		Length:  uint32(len(payload)),
@@ -42,7 +42,7 @@ func New(magic uint32, command string, payload []byte) *Envelope {
 }
 
 // Serialize the message and the payload.
-func (m *Envelope) Serialize() []byte {
+func (m *Message) Serialize() []byte {
 	var buf bytes.Buffer
 
 	b := make([]byte, 4)
@@ -65,8 +65,8 @@ func (m *Envelope) Serialize() []byte {
 }
 
 // Deserialize reads from io.Reader until a message
-// envelope is populated, including a raw payload.
-func (m *Envelope) Deserialize(r io.Reader) error {
+// is populated, including a raw payload.
+func (m *Message) Deserialize(r io.Reader) error {
 	var headerBytes [24]byte
 	_, err := io.ReadFull(r, headerBytes[:])
 	if err != nil {
