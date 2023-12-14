@@ -51,7 +51,7 @@ func (addr NetAddr) Serialize(timestamp bool) []byte {
 func (addr NetAddr) Deserialize(r io.Reader) error {
 	buf, ok := r.(*bytes.Buffer)
 	if !ok {
-		return fmt.Errorf("[NetAddr.Deserialize] reader is not a *bytes.Buffer")
+		return fmt.Errorf("NetAddr.Deserialize: reader is not a *bytes.Buffer")
 	}
 
 	// time

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"log"
 	"net"
 
 	"github.com/penkovski/btclisten/pkg/msg"
@@ -49,11 +50,11 @@ func (l *Listener) Run(notifyDone chan struct{}) {
 
 	err := l.Handshake()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
-	fmt.Println("listening...")
+	log.Println("listening...")
 
 	l.Listen(l.conn)
 }
@@ -71,7 +72,7 @@ func (l *Listener) Stop() {
 // peers have exchanged their version.
 // https://en.bitcoin.it/wiki/Protocol_documentation
 func (l *Listener) Handshake() error {
-	fmt.Println("initiate handshake...")
+	log.Println("initiate handshake...")
 
 	// send version message
 	msgver := msg.NewVersion(l.seedNode.IP, l.seedNode.Port)
@@ -80,14 +81,14 @@ func (l *Listener) Handshake() error {
 	if _, err := l.conn.Write(m.Serialize()); err != nil {
 		return fmt.Errorf("error sending version message: %v", err)
 	}
-	fmt.Println(" ✓ send version")
+	log.Println(" ✓ send version")
 
 	m = &msg.Message{}
 	err := m.Deserialize(l.conn)
 	if err != nil {
 		return err
 	}
-	fmt.Println(" ✓ received peer version")
+	log.Println(" ✓ received peer version")
 
 	// check that it's a version message
 	cmdstr := string(bytes.TrimRight(m.Command[:], string(0)))
@@ -101,7 +102,7 @@ func (l *Listener) Handshake() error {
 	if !bytes.Equal(m.Checksum[0:4], second[0:4]) {
 		return fmt.Errorf("invalid checksum: %v, expected = %v", m.Checksum, second[0:4])
 	}
-	fmt.Println(" ✓ validate peer version")
+	log.Println(" ✓ validate peer version")
 
 	// deserialize version message payload
 	receivedMsgVersion := &msg.Version{}
@@ -116,7 +117,7 @@ func (l *Listener) Handshake() error {
 	if _, err := l.conn.Write(msgVerAck.Serialize()); err != nil {
 		return err
 	}
-	fmt.Println(" ✓ send verack")
+	log.Println(" ✓ send verack")
 
 	m = &msg.Message{}
 	err = m.Deserialize(l.conn)
@@ -129,9 +130,9 @@ func (l *Listener) Handshake() error {
 	if cmdstr != "verack" {
 		return fmt.Errorf("expected version command, but received: %v", m.Command)
 	}
-	fmt.Println(" ✓ received peer verack")
+	log.Println(" ✓ received peer verack")
 
-	fmt.Println(" ✓ handshake completed")
+	log.Println(" ✓ handshake completed")
 
 	return nil
 }
@@ -149,13 +150,13 @@ func (l *Listener) Listen(conn net.Conn) {
 				return
 			}
 
-			fmt.Println("--- received message ---")
-			fmt.Println(m)
-			fmt.Printf("magic = %x\n", m.Magic)
-			fmt.Printf("command = %s\n", m.Command)
-			fmt.Printf("length = %d\n", m.Length)
-			fmt.Printf("checksum = %x\n", m.Checksum)
-			fmt.Printf("payload = %x\n", m.Payload)
+			log.Println("--- received message ---")
+			log.Println(m)
+			log.Printf("magic = %x\n", m.Magic)
+			log.Printf("command = %s\n", m.Command)
+			log.Printf("length = %d\n", m.Length)
+			log.Printf("checksum = %x\n", m.Checksum)
+			log.Printf("payload = %x\n", m.Payload)
 		}
 	}
 }

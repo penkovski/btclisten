@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 )
 
 const ProtocolVersion = 70015
@@ -73,7 +74,7 @@ func (m *Message) Deserialize(r io.Reader) error {
 		return fmt.Errorf("error reading header bytes: %v", err)
 	}
 
-	fmt.Println("headerBytes = ", headerBytes)
+	log.Println("headerBytes = ", headerBytes)
 
 	header := bytes.NewReader(headerBytes[:])
 
