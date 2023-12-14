@@ -88,7 +88,7 @@ func (v *Version) Serialize() (data []byte) {
 func (v *Version) Deserialize(r io.Reader) error {
 	buf, ok := r.(*bytes.Buffer)
 	if !ok {
-		return fmt.Errorf("[Version.Deserialize] reader is not a *bytes.Buffer")
+		return fmt.Errorf("Version.Deserialize: reader is not a *bytes.Buffer")
 	}
 
 	// protocol version

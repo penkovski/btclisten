@@ -8,6 +8,5 @@ Work in progress.
 ### Try it
 
 ```
-cd cmd/btclisten
-go run main.go -seedip 185.25.48.184
+go run ./cmd/main.go -seedip 185.25.48.184
 ```

@@ -35,7 +35,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	fmt.Printf("connected to %s\n", conn.RemoteAddr().String())
+	log.Printf("connected to %s\n", conn.RemoteAddr().String())
 
 	done := make(chan struct{})
 	listener, err := btc.NewListener(conn)
@@ -46,7 +46,7 @@ func main() {
 
 	// handle CTRL+C
 	sigch := make(chan os.Signal)
-	signal.Notify(sigch, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigch, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case <-done:
 		break
@@ -55,5 +55,5 @@ func main() {
 		<-done
 	}
 
-	fmt.Println("disconnected")
+	log.Println("disconnected")
 }
